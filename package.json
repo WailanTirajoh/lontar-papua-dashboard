@@ -1,0 +1,31 @@
+{
+  "name": "lontar-papua-dashboard",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@nuxt/eslint": "1.17.0",
+    "@nuxt/fonts": "0.14.0",
+    "@nuxt/icon": "^2.5.1",
+    "@nuxtjs/supabase": "^2.0.10",
+    "eslint": "^9.39.5",
+    "nuxt": "^4.5.2",
+    "vue": "^3.5.42",
+    "vue-router": "^5.3.0",
+    "zod": "^4.6.5"
+  },
+  "packageManager": "pnpm@10.17.1+sha512.17c560fca4867ae9473a3899ad84a88334914f379be46d455cbf92e5cf4b39d34985d452d2583baf19967fa76cb5c17bc9e245529d0b98745721aa7200ecaf7a",
+  "devDependencies": {
+    "@iconify-json/material-symbols": "^1.2.90",
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.11"
+  }
+}
