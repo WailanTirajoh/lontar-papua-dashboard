@@ -35,7 +35,7 @@ const { data, status: fetchStatus, error, refresh } = await useFetch('/api/order
   headers
 })
 
-const { data: summary, refresh: refreshSummary } = await useFetch('/api/summary', { headers })
+const { data: summary } = await useFetch('/api/summary', { headers })
 
 /** Isian formulir filter; baru berpengaruh setelah "Terapkan" ditekan. */
 const form = reactive({
@@ -77,16 +77,35 @@ function resetFilters() {
  * Kartu yang statusnya baru saja diubah ditukar di tempat, bukan memuat
  * ulang seluruh daftar: admin sering mengubah beberapa pesanan berturut-
  * turut, dan daftar yang melompat ke atas tiap kali membuat urutan kerja
- * mudah hilang. Ringkasan di atas tetap disegarkan karena angkanya berubah.
+ * mudah hilang.
+ *
+ * Angka ringkasan digeser di tempat juga - satu turun, satu naik - bukan
+ * dengan memanggil /api/summary lagi. Hasilnya identik: satu pesanan pindah
+ * status berarti persis satu perpindahan angka, dan baris yang dipakai
+ * adalah balasan server, bukan tebakan. Yang hilang cuma satu perjalanan
+ * jaringan beserta empat COUNT di belakangnya, pada aksi yang paling sering
+ * dilakukan admin sepanjang hari.
  */
 function replaceOrder(updated: Order) {
   if (!data.value) return
+
+  const previous = data.value.orders.find((order) => order.id === updated.id)
 
   data.value = {
     ...data.value,
     orders: data.value.orders.map((order) => order.id === updated.id ? updated : order)
   }
-  refreshSummary()
+
+  if (!summary.value || !previous || previous.status === updated.status) return
+
+  summary.value = {
+    ...summary.value,
+    // Math.max menjaga angka tidak pernah negatif bila ringkasan sempat
+    // dimuat sebelum pesanan ini masuk - lebih baik meleset satu daripada
+    // menampilkan "-1".
+    [previous.status]: Math.max(0, summary.value[previous.status] - 1),
+    [updated.status]: summary.value[updated.status] + 1
+  }
 }
 
 /**

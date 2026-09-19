@@ -1,9 +1,30 @@
 /**
  * Jumlah pesanan per status, untuk deretan kartu di atas daftar.
  *
- * Dihitung Postgres dengan `head: true` - hanya angka yang dikirim, tidak
- * satu baris pun. Menghitungnya dari halaman yang sedang tampil akan salah:
- * paginasi membuat angkanya hanya mencerminkan 20 pesanan teratas.
+ * Empat permintaan, bukan N+1. N+1 berarti jumlah query ikut tumbuh mengikuti
+ * banyaknya baris - satu query lagi untuk tiap pesanan yang barusan dibaca.
+ * Di sini jumlahnya terkunci pada panjang `orderStatuses`: empat, entah
+ * tabelnya berisi sepuluh pesanan atau sejuta. Keempatnya juga berangkat
+ * bersamaan lewat Promise.all, jadi biayanya satu kali tunggu jaringan,
+ * bukan empat.
+ *
+ * Yang benar-benar mahal justru bukan jumlah query itu, melainkan bahwa
+ * `orders` belum punya indeks pada kolom `status` (lihat migrasi di repo
+ * situs pembeli) - tiap COUNT memindai seluruh tabel. Pada skala pesanan kue
+ * itu tidak terasa, dan indeksnya pun bukan milik repo ini. Kalau suatu saat
+ * terasa, urutan perbaikannya: tambah indeks `orders (status)` di migrasi
+ * situs pembeli lebih dulu; baru kalau masih kurang, pindahkan hitungannya
+ * ke satu fungsi RPC berisi `count(*) filter (where ...)`.
+ *
+ * Bentuk satu-query lewat agregat PostgREST (`select=status,count()`)
+ * sengaja tidak dipakai: Supabase mematikan agregat secara bawaan, dan
+ * menyalakannya adalah setelan seluruh proyek - ikut berlaku untuk situs
+ * pembeli yang memakai database yang sama. Terlalu besar untuk menghemat
+ * tiga permintaan yang sudah paralel.
+ *
+ * `head: true` membuat Postgres hanya mengirim angkanya, tanpa satu baris
+ * pun. Menghitung dari halaman yang sedang tampil bukan pilihan: paginasi
+ * membuat angkanya hanya mencerminkan 20 pesanan teratas.
  */
 
 import { serverSupabaseServiceRole } from '#supabase/server'
