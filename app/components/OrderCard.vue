@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{ order: Order }>()
-const emit = defineEmits<{ updated: [order: Order] }>()
+const emit = defineEmits<{ updated: [result: OrderPatchResult] }>()
 
 const saving = ref(false)
 const errorMessage = ref('')
@@ -23,11 +23,11 @@ async function changeStatus(event: Event) {
   errorMessage.value = ''
 
   try {
-    const updated = await $fetch<Order>(`/api/orders/${props.order.id}`, {
+    const result = await $fetch<OrderPatchResult>(`/api/orders/${props.order.id}`, {
       method: 'PATCH',
       body: { status }
     })
-    emit('updated', updated)
+    emit('updated', result)
   } catch {
     errorMessage.value = 'Status gagal disimpan.'
     // Kembalikan select ke nilai yang benar-benar tersimpan.

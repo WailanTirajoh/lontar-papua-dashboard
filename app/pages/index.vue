@@ -79,33 +79,26 @@ function resetFilters() {
  * turut, dan daftar yang melompat ke atas tiap kali membuat urutan kerja
  * mudah hilang.
  *
- * Angka ringkasan digeser di tempat juga - satu turun, satu naik - bukan
- * dengan memanggil /api/summary lagi. Hasilnya identik: satu pesanan pindah
- * status berarti persis satu perpindahan angka, dan baris yang dipakai
- * adalah balasan server, bukan tebakan. Yang hilang cuma satu perjalanan
- * jaringan beserta empat COUNT di belakangnya, pada aksi yang paling sering
- * dilakukan admin sepanjang hari.
+ * Baris pesanan dan angka ringkasan sama-sama datang dari balasan PATCH,
+ * jadi keduanya hasil hitungan server sesudah perubahan tersimpan. Menggeser
+ * sendiri angkanya di sini - satu turun, satu naik - sempat dicoba dan
+ * salah: tebakan itu hanya benar bila admin ini satu-satunya yang menyentuh
+ * tabel sejak ringkasan dimuat, padahal NUXT_ADMIN_EMAILS menerima lebih
+ * dari satu orang. Tetap satu perjalanan jaringan, kini dengan angka yang
+ * benar-benar dihitung.
  */
-function replaceOrder(updated: Order) {
-  if (!data.value) return
-
-  const previous = data.value.orders.find((order) => order.id === updated.id)
-
-  data.value = {
-    ...data.value,
-    orders: data.value.orders.map((order) => order.id === updated.id ? updated : order)
+function replaceOrder({ order: updated, summary: fresh }: OrderPatchResult) {
+  if (data.value) {
+    data.value = {
+      ...data.value,
+      orders: data.value.orders.map((order) => order.id === updated.id ? updated : order)
+    }
   }
 
-  if (!summary.value || !previous || previous.status === updated.status) return
-
-  summary.value = {
-    ...summary.value,
-    // Math.max menjaga angka tidak pernah negatif bila ringkasan sempat
-    // dimuat sebelum pesanan ini masuk - lebih baik meleset satu daripada
-    // menampilkan "-1".
-    [previous.status]: Math.max(0, summary.value[previous.status] - 1),
-    [updated.status]: summary.value[updated.status] + 1
-  }
+  // `null` berarti statusnya tersimpan tapi ringkasannya gagal dihitung.
+  // Angka lama dibiarkan berdiri: salah satu angka meleset lebih baik
+  // daripada seluruh deretan kartu mendadak kosong.
+  if (fresh) summary.value = fresh
 }
 
 /**
