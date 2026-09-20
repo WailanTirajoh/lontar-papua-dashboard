@@ -137,6 +137,12 @@ async function changeStatus(event: Event) {
             v-if="item.with_hampers"
             class="text-on-surface-variant"
           >· hampers</span>
+          <!-- Rasa paket dapat barisnya sendiri: ini yang dibaca dapur saat
+               menyiapkan pesanan, bukan sekadar keterangan tambahan. -->
+          <span
+            v-if="item.flavors?.length"
+            class="mt-0.5 block text-on-surface-variant"
+          >{{ item.flavors.join(' + ') }}</span>
         </span>
         <span class="ml-auto shrink-0 tabular-nums text-on-surface">
           {{ formatRupiah(item.line_total_idr) }}
