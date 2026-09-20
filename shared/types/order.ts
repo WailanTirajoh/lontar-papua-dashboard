@@ -25,3 +25,22 @@ export interface OrderListResult {
 
 /** Jumlah pesanan per status, untuk kartu ringkasan di atas daftar. */
 export type OrderSummary = Record<OrderStatus, number>
+
+/**
+ * Balasan PATCH /api/orders/:id.
+ *
+ * Ringkasannya ikut dikirim, bukan supaya halaman hemat satu permintaan
+ * (itu cuma efek sampingnya), melainkan supaya angkanya tetap benar ketika
+ * dua admin bekerja bersamaan: dihitung ulang di server setelah update, jadi
+ * perubahan admin lain ikut terhitung. Menggesernya sendiri di browser hanya
+ * benar bila tidak ada orang lain yang menyentuh tabel.
+ */
+export interface OrderPatchResult {
+  order: Order
+  /**
+   * `null` bila status sudah tersimpan tapi penghitungan ringkasannya gagal -
+   * perubahan yang sudah jadi tidak pantas dilaporkan sebagai kegagalan hanya
+   * karena angka hiasan di atasnya tidak terkumpul.
+   */
+  summary: OrderSummary | null
+}

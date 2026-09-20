@@ -35,7 +35,7 @@ const { data, status: fetchStatus, error, refresh } = await useFetch('/api/order
   headers
 })
 
-const { data: summary, refresh: refreshSummary } = await useFetch('/api/summary', { headers })
+const { data: summary } = await useFetch('/api/summary', { headers })
 
 /** Isian formulir filter; baru berpengaruh setelah "Terapkan" ditekan. */
 const form = reactive({
@@ -77,16 +77,28 @@ function resetFilters() {
  * Kartu yang statusnya baru saja diubah ditukar di tempat, bukan memuat
  * ulang seluruh daftar: admin sering mengubah beberapa pesanan berturut-
  * turut, dan daftar yang melompat ke atas tiap kali membuat urutan kerja
- * mudah hilang. Ringkasan di atas tetap disegarkan karena angkanya berubah.
+ * mudah hilang.
+ *
+ * Baris pesanan dan angka ringkasan sama-sama datang dari balasan PATCH,
+ * jadi keduanya hasil hitungan server sesudah perubahan tersimpan. Menggeser
+ * sendiri angkanya di sini - satu turun, satu naik - sempat dicoba dan
+ * salah: tebakan itu hanya benar bila admin ini satu-satunya yang menyentuh
+ * tabel sejak ringkasan dimuat, padahal NUXT_ADMIN_EMAILS menerima lebih
+ * dari satu orang. Tetap satu perjalanan jaringan, kini dengan angka yang
+ * benar-benar dihitung.
  */
-function replaceOrder(updated: Order) {
-  if (!data.value) return
-
-  data.value = {
-    ...data.value,
-    orders: data.value.orders.map((order) => order.id === updated.id ? updated : order)
+function replaceOrder({ order: updated, summary: fresh }: OrderPatchResult) {
+  if (data.value) {
+    data.value = {
+      ...data.value,
+      orders: data.value.orders.map((order) => order.id === updated.id ? updated : order)
+    }
   }
-  refreshSummary()
+
+  // `null` berarti statusnya tersimpan tapi ringkasannya gagal dihitung.
+  // Angka lama dibiarkan berdiri: salah satu angka meleset lebih baik
+  // daripada seluruh deretan kartu mendadak kosong.
+  if (fresh) summary.value = fresh
 }
 
 /**

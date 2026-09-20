@@ -13,7 +13,7 @@ const bodySchema = z.object({
   status: z.enum(orderStatusValues)
 })
 
-export default defineEventHandler(async (event): Promise<Order> => {
+export default defineEventHandler(async (event): Promise<OrderPatchResult> => {
   const { email } = await requireAdmin(event)
 
   const id = Number(getRouterParam(event, 'id'))
@@ -50,5 +50,21 @@ export default defineEventHandler(async (event): Promise<Order> => {
   // satunya jejaknya sampai ada kebutuhan audit yang sungguhan.
   console.info(`[orders] ${email} mengubah pesanan ${id} jadi ${parsed.data.status}`)
 
-  return data as Order
+  // Dihitung ulang setelah update, di permintaan yang sama. Halaman tidak
+  // boleh menyimpulkan sendiri "satu turun, satu naik": tebakan itu hanya
+  // benar bila admin ini satu-satunya yang menyentuh tabel sejak ringkasan
+  // dimuat, dan NUXT_ADMIN_EMAILS memang menerima lebih dari satu orang.
+  //
+  // Ringkasan yang gagal dihitung tidak membatalkan perubahan status yang
+  // sudah tersimpan: pemanggil menerima 200 dengan summary null dan angka di
+  // layar dibiarkan apa adanya sampai halaman dimuat ulang.
+  let summary: OrderSummary | null = null
+  try {
+    summary = await readOrderSummary(event)
+  } catch (error) {
+    console.error(`[orders] status pesanan ${id} tersimpan, ringkasan gagal dihitung`)
+    console.error(error)
+  }
+
+  return { order: data as Order, summary }
 })
