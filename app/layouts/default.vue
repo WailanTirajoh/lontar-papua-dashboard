@@ -2,6 +2,11 @@
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 
+const navLinks = [
+  { to: '/', label: 'Pesanan' },
+  { to: '/referal', label: 'Referal' }
+]
+
 const signingOut = ref(false)
 
 /**
@@ -32,6 +37,19 @@ async function signOut() {
           />
           Lontar Papua
         </NuxtLink>
+
+        <!-- Dua halaman kerja saja; begitu bertambah, ini yang jadi menu. -->
+        <nav class="flex items-center gap-1 text-sm">
+          <NuxtLink
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            class="rounded-md px-2.5 py-1.5 text-on-surface-variant transition-colors hover:bg-surface-container"
+            active-class="bg-primary-container/40 text-on-primary-container"
+          >
+            {{ link.label }}
+          </NuxtLink>
+        </nav>
 
         <span class="ml-auto hidden text-sm text-on-surface-variant sm:inline">
           {{ user?.email }}

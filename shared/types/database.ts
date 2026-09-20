@@ -8,8 +8,8 @@
  * yang tanpa tipe hanya menerima `never`.
  *
  * Sumber kebenarannya tetap migrasi di repo situs pembeli
- * (`supabase/migrations/20260919092758_create_orders_and_order_items.sql`).
- * Repo ini hanya membaca dan mengubah `orders.status`; migrasi tidak boleh
+ * (`supabase/migrations/`). Repo ini membaca pesanan, mengubah
+ * `orders.status`, dan mengelola seluruh isi `referrals`; migrasi tidak boleh
  * dibuat dari sini - dua repo yang sama-sama memigrasikan satu database akan
  * saling menimpa.
  *
@@ -53,6 +53,38 @@ export interface Database {
           // menekan kirim; nota lama yang bisa diedit belakangan tidak lagi
           // bisa dipakai sebagai bukti apa pun.
           status?: OrderStatus
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          id: number
+          created_at: string
+          /** Diisi trigger referrals_set_updated_at, bukan oleh pemanggil. */
+          updated_at: string
+          /** Selalu huruf besar; pola `^[A-Z0-9_-]{2,32}$`. */
+          code: string
+          /** Hanya kode aktif yang dianggap valid oleh situs pembeli. */
+          is_active: boolean
+          referrer_name: string | null
+          referrer_phone: string | null
+          notes: string | null
+        }
+        Insert: {
+          code: string
+          is_active?: boolean
+          referrer_name?: string | null
+          referrer_phone?: string | null
+          notes?: string | null
+        }
+        Update: {
+          // id, created_at, dan updated_at sengaja tidak ada: dua yang pertama
+          // milik database, yang terakhir diisi trigger.
+          code?: string
+          is_active?: boolean
+          referrer_name?: string | null
+          referrer_phone?: string | null
+          notes?: string | null
         }
         Relationships: []
       }
