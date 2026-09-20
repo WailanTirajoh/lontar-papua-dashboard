@@ -30,11 +30,13 @@ export async function withOrderCounts(event: H3Event, rows: ReferralRow[]): Prom
         .eq('referral_code', row.code)
 
       if (error) {
-        // Kode tetap tampil tanpa angkanya: gagal menghitung pemakaian bukan
-        // alasan menyembunyikan seluruh daftar dari admin.
+        // `null`, bukan 0: kode tetap tampil - gagal menghitung pemakaian
+        // bukan alasan menyembunyikan seluruh daftar dari admin - tapi angka
+        // yang tidak terhitung tidak boleh menyamar jadi "belum pernah
+        // dipakai". Konfirmasi hapus membaca nilai ini.
         console.error(`[referrals] gagal menghitung pemakaian kode ${row.code}`)
         console.error(error)
-        return { ...row, order_count: 0 }
+        return { ...row, order_count: null }
       }
 
       return { ...row, order_count: count ?? 0 }

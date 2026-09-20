@@ -27,8 +27,19 @@ export const referralBodySchema = z.object({
   notes: optionalText(REFERRAL_LIMITS.notes)
 })
 
-/** Versi PATCH: kirim hanya kolom yang berubah. */
-export const referralPatchSchema = referralBodySchema.partial()
+/**
+ * Versi PATCH: kirim hanya kolom yang berubah.
+ *
+ * `is_active` ditulis ulang tanpa default, dan itu wajib. `.partial()` hanya
+ * membungkus tiap field dengan optional, jadi `.default(true)` di dalamnya
+ * tetap berjalan: zod 4.6.5 mem-parse `{ notes: 'x' }` jadi
+ * `{ notes: 'x', is_active: true }`. Tanpa baris ini, mengubah catatan saja
+ * diam-diam menghidupkan kembali kode yang sudah dinonaktifkan - dan body
+ * kosong pun lolos penjaga "tidak ada yang diubah" di rute PATCH.
+ */
+export const referralPatchSchema = referralBodySchema.partial().extend({
+  is_active: z.boolean().optional()
+})
 
 /**
  * Pesan yang bisa dibaca admin untuk kegagalan tulis yang memang bisa terjadi

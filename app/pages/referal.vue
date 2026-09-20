@@ -71,31 +71,27 @@ function openForm() {
 }
 
 /**
- * Kode baru disisipkan ke daftar yang sedang tampil, bukan memuat ulang
- * seluruh halaman: pemilik usaha biasanya menambahkan beberapa kode
- * berturut-turut, dan daftar yang melompat tiap kali membuat urutan kerjanya
- * mudah hilang. Filter yang aktif sengaja tidak diperiksa - kode yang baru
- * ditambah tetap terlihat sebentar meski tidak cocok, dan muat ulang
- * berikutnya yang merapikannya.
+ * Daftar dimuat ulang dari server setelah kode baru tersimpan, bukan
+ * disisipkan sendiri di atas.
+ *
+ * Menyisipkannya memang tidak membuat daftar melompat, tapi daftar ini
+ * tersaring dan berhalaman: baris sisipan itu akan tetap terlihat meski tidak
+ * cocok dengan filter yang sedang aktif, dan halamannya jadi lebih panjang
+ * daripada pageSize. Urutannya `is_active desc, created_at desc`, jadi tanpa
+ * filter kode baru tetap muncul paling atas - hasil yang sama, tanpa baris
+ * yang membohongi filternya.
  */
 async function create() {
   saving.value = true
   formError.value = ''
 
   try {
-    const created = await $fetch<Referral>('/api/referrals', {
+    await $fetch<Referral>('/api/referrals', {
       method: 'POST',
       body: draft.value
     })
 
-    if (data.value) {
-      data.value = {
-        ...data.value,
-        referrals: [created, ...data.value.referrals],
-        total: data.value.total + 1
-      }
-    }
-
+    await refresh()
     adding.value = false
   } catch (err) {
     formError.value = errorText(err, 'Kode gagal disimpan.')
@@ -104,6 +100,18 @@ async function create() {
   }
 }
 
+/**
+ * Kartu yang baru diubah ditukar di tempat, bukan memuat ulang daftar - pola
+ * yang sama dengan replaceOrder() di halaman pesanan, dan alasannya sama:
+ * admin sering mengubah beberapa baris berturut-turut, dan daftar yang
+ * melompat tiap kali membuat urutan kerjanya hilang.
+ *
+ * Akibatnya kode yang baru dinonaktifkan tetap terlihat meski filternya
+ * "Aktif". Itu disengaja: kartunya menampilkan baris yang benar-benar
+ * tersimpan, dan menghilangkan baris yang baru saja disentuh admin justru
+ * menyembunyikan hasil pekerjaannya sendiri. Filter dirapikan muat ulang
+ * berikutnya.
+ */
 function replaceReferral(updated: Referral) {
   if (!data.value) return
 
@@ -113,14 +121,26 @@ function replaceReferral(updated: Referral) {
   }
 }
 
-function removeReferral(id: number) {
+/**
+ * Setelah satu kode dihapus, daftar diambil ulang supaya barisnya terisi dari
+ * halaman berikutnya dan totalnya benar.
+ *
+ * Kecuali satu hal yang tidak bisa diperbaiki oleh muat ulang: menghapus
+ * baris terakhir di halaman kedua atau seterusnya meninggalkan halaman yang
+ * memang sudah tidak ada, dan admin melihat "belum ada kode referal yang
+ * cocok" padahal kodenya masih banyak. Karena itu halamannya dimundurkan
+ * dulu - perpindahan rute itu sendiri yang memicu pengambilan ulang.
+ */
+async function removeReferral() {
   if (!data.value) return
 
-  data.value = {
-    ...data.value,
-    referrals: data.value.referrals.filter((r) => r.id !== id),
-    total: Math.max(0, data.value.total - 1)
+  if (data.value.referrals.length <= 1 && page.value > 1) {
+    const previous = page.value - 1
+    applyQuery({ page: previous > 1 ? previous : undefined })
+    return
   }
+
+  await refresh()
 }
 
 const totalPages = computed(() => {

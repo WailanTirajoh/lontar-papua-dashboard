@@ -63,15 +63,29 @@ function toggleActive() {
   save({ is_active: !props.referral.is_active })
 }
 
+/** "3 pesanan", atau apa adanya bila hitungannya gagal. */
+const usageLabel = computed(() =>
+  props.referral.order_count === null
+    ? 'pemakaian tidak terbaca'
+    : `${props.referral.order_count} pesanan`
+)
+
 /**
  * Konfirmasi menyebut jumlah pesanan yang memakai kode ini: pesanan lama
  * menyimpan kodenya sebagai teks, jadi menghapus baris tidak merusak nota
  * mana pun - tapi catatan siapa pereferensinya memang hilang.
+ *
+ * Hitungan yang gagal (`null`) diperlakukan seperti "mungkin banyak", bukan
+ * seperti nol: peringatan yang hilang justru pada kode yang paling perlu
+ * diperingatkan adalah kegagalan yang paling mahal di sini.
  */
 async function remove() {
-  const dipakai = props.referral.order_count > 0
-    ? ` Kode ini sudah dipakai ${props.referral.order_count} pesanan; nota lamanya tetap menyimpan kodenya, tapi nama pereferensinya hilang.`
-    : ''
+  const count = props.referral.order_count
+  const dipakai = count === null
+    ? ' Jumlah pesanan yang memakai kode ini tidak bisa dipastikan sekarang; nota lamanya tetap menyimpan kodenya, tapi nama pereferensinya hilang.'
+    : count > 0
+      ? ` Kode ini sudah dipakai ${count} pesanan; nota lamanya tetap menyimpan kodenya, tapi nama pereferensinya hilang.`
+      : ''
 
   if (!confirm(`Hapus kode ${props.referral.code}?${dipakai}\n\nUntuk kode yang sudah tidak berlaku, menonaktifkannya lebih aman.`)) return
 
@@ -109,7 +123,7 @@ async function remove() {
       </span>
 
       <span class="ml-auto text-xs text-on-surface-variant">
-        {{ referral.order_count }} pesanan
+        {{ usageLabel }}
       </span>
     </header>
 
