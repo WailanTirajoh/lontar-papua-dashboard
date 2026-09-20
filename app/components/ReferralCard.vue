@@ -18,9 +18,7 @@ const draft = ref<ReferralDraft>(referralToDraft(props.referral))
 
 const phoneLink = computed(() => waLink(props.referral.referrer_phone))
 
-const canSave = computed(() =>
-  !saving.value && REFERRAL_CODE_PATTERN.test(draft.value.code)
-)
+const canSave = computed(() => !saving.value && referralDraftReady(draft.value))
 
 function startEdit() {
   // Isian selalu dimulai dari baris yang benar-benar tersimpan, bukan dari

@@ -62,7 +62,7 @@ const saving = ref(false)
 const formError = ref('')
 const draft = ref<ReferralDraft>(emptyReferralDraft())
 
-const canSave = computed(() => !saving.value && REFERRAL_CODE_PATTERN.test(draft.value.code))
+const canSave = computed(() => !saving.value && referralDraftReady(draft.value))
 
 function openForm() {
   draft.value = emptyReferralDraft()

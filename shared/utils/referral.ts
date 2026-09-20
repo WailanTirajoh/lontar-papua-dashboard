@@ -33,6 +33,28 @@ export function normalizeReferralCode(code: string) {
   return code.trim().toUpperCase()
 }
 
+/**
+ * Nomor WhatsApp yang sudah diisi tapi lebih pendek dari batas bawah kolom.
+ * Kosong bukan kesalahan - artinya "dikosongkan", dan kolomnya nullable.
+ */
+export function referralPhoneTooShort(phone: string) {
+  const nomor = phone.trim()
+  return nomor.length > 0 && nomor.length < REFERRAL_LIMITS.phoneMin
+}
+
+/**
+ * Isian sudah memenuhi seluruh aturan yang bisa diperiksa di browser, jadi
+ * tombol Simpan boleh aktif.
+ *
+ * Satu fungsi untuk formulir tambah maupun ubah: dua salinan aturan yang sama
+ * adalah cara tercepat membuat salah satunya lupa ikut diperbarui. Ini tetap
+ * bukan gerbangnya - referralBodySchema di server yang menentukan - tapi
+ * permintaan yang sudah pasti ditolak tidak perlu dikirim.
+ */
+export function referralDraftReady(draft: ReferralDraft) {
+  return REFERRAL_CODE_PATTERN.test(draft.code) && !referralPhoneTooShort(draft.referrer_phone)
+}
+
 /** Label status, sejajar dengan orderStatusLabel() di ./order. */
 export function referralStatusLabel(isActive: boolean) {
   return isActive ? 'Aktif' : 'Nonaktif'

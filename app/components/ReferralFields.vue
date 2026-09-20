@@ -35,12 +35,10 @@ const codeInvalid = computed(
 /**
  * Alasan yang sama: nomor boleh dikosongkan, tapi yang sudah diketik dan
  * terlalu pendek ditolak constraint referrals_referrer_phone_len. Lebih baik
- * terlihat di sini daripada kembali sebagai galat setelah tombol Simpan.
+ * terlihat di sini daripada kembali sebagai galat setelah tombol Simpan -
+ * dan aturan yang sama pula yang menahan tombolnya lewat referralDraftReady().
  */
-const phoneInvalid = computed(() => {
-  const nomor = draft.value.referrer_phone.trim()
-  return nomor.length > 0 && nomor.length < REFERRAL_LIMITS.phoneMin
-})
+const phoneInvalid = computed(() => referralPhoneTooShort(draft.value.referrer_phone))
 </script>
 
 <template>
