@@ -12,8 +12,16 @@ import type { Referral, ReferralDraft } from '../types/referral'
 
 export const REFERRAL_CODE_PATTERN = /^[A-Z0-9_-]{2,32}$/
 
-/** Batas kolom teks, sama dengan CHECK constraint di migrasi. */
-export const REFERRAL_LIMITS = { name: 80, phone: 30, notes: 500 } as const
+/**
+ * Batas kolom teks, sama dengan CHECK constraint di migrasi.
+ *
+ * `phoneMin` ikut di sini karena referrals_referrer_phone_len menuntut 5
+ * karakter, bukan hanya maksimal 30. Tanpa batas bawah di zod, nomor sependek
+ * "081" lolos sampai Postgres dan kembali sebagai 23514 yang cuma bisa
+ * diterjemahkan jadi "isian tidak memenuhi aturan" - tanpa menyebut isian
+ * yang mana. Kosong tetap sah: artinya "dikosongkan", dan kolomnya nullable.
+ */
+export const REFERRAL_LIMITS = { name: 80, phone: 30, phoneMin: 5, notes: 500 } as const
 
 /**
  * Kode apa adanya dari isian jadi bentuk yang disimpan: tanpa spasi di tepi

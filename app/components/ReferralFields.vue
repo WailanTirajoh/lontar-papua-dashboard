@@ -31,6 +31,16 @@ const code = computed({
 const codeInvalid = computed(
   () => code.value.length > 0 && !REFERRAL_CODE_PATTERN.test(code.value)
 )
+
+/**
+ * Alasan yang sama: nomor boleh dikosongkan, tapi yang sudah diketik dan
+ * terlalu pendek ditolak constraint referrals_referrer_phone_len. Lebih baik
+ * terlihat di sini daripada kembali sebagai galat setelah tombol Simpan.
+ */
+const phoneInvalid = computed(() => {
+  const nomor = draft.value.referrer_phone.trim()
+  return nomor.length > 0 && nomor.length < REFERRAL_LIMITS.phoneMin
+})
 </script>
 
 <template>
@@ -78,8 +88,17 @@ const codeInvalid = computed(
         type="tel"
         :maxlength="REFERRAL_LIMITS.phone"
         placeholder="Opsional"
-        :class="fieldClass"
+        :class="[fieldClass, phoneInvalid && 'border-error']"
+        :aria-invalid="phoneInvalid"
+        :aria-describedby="`${idPrefix}-phone-help`"
       >
+      <span
+        :id="`${idPrefix}-phone-help`"
+        class="mt-1 block text-xs"
+        :class="phoneInvalid ? 'text-error' : 'text-on-surface-variant'"
+      >
+        Boleh dikosongkan. Bila diisi, minimal {{ REFERRAL_LIMITS.phoneMin }} karakter.
+      </span>
     </label>
 
     <label class="sm:col-span-2">

@@ -13,6 +13,18 @@ import { z } from 'zod'
 const optionalText = (max: number) =>
   z.string().trim().max(max).nullish().transform((value) => value || null)
 
+/**
+ * Nomor WhatsApp: opsional seperti yang lain, tapi begitu diisi harus memenuhi
+ * batas bawah constraint referrals_referrer_phone_len juga. Diperiksa sesudah
+ * transform - pada nilai yang sudah di-trim dan sudah jadi null bila kosong -
+ * supaya "dikosongkan" tetap sah dan yang tersisa hanya nomor yang memang
+ * terlalu pendek.
+ */
+const optionalPhone = optionalText(REFERRAL_LIMITS.phone).refine(
+  (value) => value === null || value.length >= REFERRAL_LIMITS.phoneMin,
+  { message: `Nomor WhatsApp terlalu pendek (minimal ${REFERRAL_LIMITS.phoneMin} karakter)` }
+)
+
 export const referralBodySchema = z.object({
   code: z
     .string()
@@ -23,7 +35,7 @@ export const referralBodySchema = z.object({
     }),
   is_active: z.boolean().default(true),
   referrer_name: optionalText(REFERRAL_LIMITS.name),
-  referrer_phone: optionalText(REFERRAL_LIMITS.phone),
+  referrer_phone: optionalPhone,
   notes: optionalText(REFERRAL_LIMITS.notes)
 })
 

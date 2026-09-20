@@ -7,9 +7,25 @@
  * Membuangnya lalu menampilkan "gagal menyimpan" untuk semua kasus membuat
  * admin menebak-nebak apa yang salah.
  *
- * Kegagalan jaringan tidak punya statusMessage; itulah gunanya `fallback`.
+ * Badan JSON dibaca LEBIH DULU, bukan `error.statusMessage`. Yang terakhir
+ * itu diisi ofetch dari `response.statusText` - dan HTTP/2 tidak punya reason
+ * phrase sama sekali, jadi di Vercel nilainya selalu string kosong dan setiap
+ * kegagalan tampil sebagai `fallback` yang generik. H3 mengirim pesan yang
+ * sama di badan responsnya, dan di sanalah ia selamat.
+ *
+ * Kegagalan jaringan tidak punya keduanya; itulah gunanya `fallback`.
  */
+interface KegagalanFetch {
+  data?: { statusMessage?: string, message?: string }
+  statusMessage?: string
+}
+
 export function errorText(error: unknown, fallback: string) {
-  const message = (error as { statusMessage?: string })?.statusMessage
-  return typeof message === 'string' && message ? message : fallback
+  const { data, statusMessage } = (error ?? {}) as KegagalanFetch
+
+  for (const pesan of [data?.statusMessage, statusMessage]) {
+    if (typeof pesan === 'string' && pesan.trim()) return pesan
+  }
+
+  return fallback
 }
