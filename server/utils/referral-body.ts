@@ -1,0 +1,73 @@
+/**
+ * Bentuk isian kode referal, dipakai rute POST maupun PATCH.
+ *
+ * Batasnya sengaja dipilih sama persis dengan CHECK constraint di migrasi repo
+ * situs pembeli: kalau zod meloloskan, Postgres tidak menolak - jadi tidak ada
+ * dua sumber kebenaran yang bisa berbeda diam-diam. Pola yang sama dengan
+ * orderSchema di `server/api/orders.post.ts` situs pembeli.
+ */
+
+import { z } from 'zod'
+
+/** Teks bebas opsional: string kosong berarti "dikosongkan", bukan ''. */
+const optionalText = (max: number) =>
+  z.string().trim().max(max).nullish().transform((value) => value || null)
+
+/**
+ * Nomor WhatsApp: opsional seperti yang lain, tapi begitu diisi harus memenuhi
+ * batas bawah constraint referrals_referrer_phone_len juga. Diperiksa sesudah
+ * transform - pada nilai yang sudah di-trim dan sudah jadi null bila kosong -
+ * supaya "dikosongkan" tetap sah dan yang tersisa hanya nomor yang memang
+ * terlalu pendek.
+ */
+const optionalPhone = optionalText(REFERRAL_LIMITS.phone).refine(
+  (value) => value === null || value.length >= REFERRAL_LIMITS.phoneMin,
+  { message: `Nomor WhatsApp terlalu pendek (minimal ${REFERRAL_LIMITS.phoneMin} karakter)` }
+)
+
+export const referralBodySchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .refine((value) => REFERRAL_CODE_PATTERN.test(value), {
+      message: 'Kode hanya boleh huruf, angka, garis bawah, dan strip (2-32 karakter)'
+    }),
+  is_active: z.boolean().default(true),
+  referrer_name: optionalText(REFERRAL_LIMITS.name),
+  referrer_phone: optionalPhone,
+  notes: optionalText(REFERRAL_LIMITS.notes)
+})
+
+/**
+ * Versi PATCH: kirim hanya kolom yang berubah.
+ *
+ * `is_active` ditulis ulang tanpa default, dan itu wajib. `.partial()` hanya
+ * membungkus tiap field dengan optional, jadi `.default(true)` di dalamnya
+ * tetap berjalan: zod 4.6.5 mem-parse `{ notes: 'x' }` jadi
+ * `{ notes: 'x', is_active: true }`. Tanpa baris ini, mengubah catatan saja
+ * diam-diam menghidupkan kembali kode yang sudah dinonaktifkan - dan body
+ * kosong pun lolos penjaga "tidak ada yang diubah" di rute PATCH.
+ */
+export const referralPatchSchema = referralBodySchema.partial().extend({
+  is_active: z.boolean().optional()
+})
+
+/**
+ * Pesan yang bisa dibaca admin untuk kegagalan tulis yang memang bisa terjadi
+ * dalam pemakaian normal. Sisanya dibiarkan jadi 502 - itu bug, bukan isian
+ * yang salah, dan menampilkan pesan Postgres apa adanya ke layar tidak
+ * membantu siapa pun.
+ */
+export function referralWriteError(error: { code?: string }) {
+  // 23505 = unique_violation pada referrals_code_key.
+  if (error.code === '23505') {
+    return createError({ statusCode: 409, statusMessage: 'Kode itu sudah terdaftar' })
+  }
+  // 23514 = check_violation; pola & panjang sudah dijaga zod, jadi ini hanya
+  // muncul bila keduanya sempat berbeda.
+  if (error.code === '23514') {
+    return createError({ statusCode: 400, statusMessage: 'Isian kode referal tidak memenuhi aturan' })
+  }
+  return null
+}
