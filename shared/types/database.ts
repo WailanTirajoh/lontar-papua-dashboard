@@ -99,6 +99,11 @@ export interface Database {
           /** Hanya terisi untuk Lontar Slice. */
           slice_count: number | null
           with_hampers: boolean
+          /**
+           * Isi paket per slot, mis. ['1 Loyang Keju Cheddar', '2 slice
+           * Original']. Hanya terisi untuk pesanan paket.
+           */
+          flavors: string[] | null
           unit_price_idr: number
           line_total_idr: number
         }
