@@ -89,3 +89,29 @@
 @utility shadow-warm {
   box-shadow: 0 8px 24px -4px rgb(61 35 20 / 0.08);
 }
+
+/*
+ * Balok pengisi tempat selama data belum datang. Dipakai bersama kelas
+ * ukuran Tailwind (`h-4 w-32`), jadi tiap kerangka bisa meniru tinggi baris
+ * yang sedang digantikannya - itu yang membuat isi aslinya tidak menggeser
+ * apa pun saat akhirnya muncul.
+ *
+ * Kedipnya dimatikan bagi yang memilih `prefers-reduced-motion`: gerak
+ * berulang di seluruh layar persis yang dihindari setelan itu, dan warnanya
+ * sendiri sudah cukup menandakan "belum ada isinya".
+ */
+@utility skeleton {
+  background-color: var(--color-surface-container-high);
+  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}

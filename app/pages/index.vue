@@ -30,12 +30,51 @@ const listQuery = computed(() => ({
   page: page.value
 }))
 
-const { data, status: fetchStatus, error, refresh } = await useFetch('/api/orders', {
+/**
+ * `lazy` plus setup yang tidak lagi `await`: inilah yang membuat perpindahan
+ * halaman terasa seketika. Tanpa keduanya setup halaman ini adalah fungsi
+ * async yang ditunggu Suspense, jadi peramban masih menahan halaman lama
+ * sampai /api/orders membalas - klik menu terasa menggantung padahal yang
+ * lambat cuma datanya.
+ *
+ * Yang berubah hanya sisi klien. Saat render di server, `lazy` tidak
+ * berpengaruh (Nuxt tetap menunggunya lewat `onServerPrefetch`), jadi muat
+ * pertama maupun tautan yang dibagikan tetap mengirim HTML berisi pesanan.
+ */
+const { data, status: fetchStatus, error, refresh } = useFetch('/api/orders', {
   query: listQuery,
-  headers
+  headers,
+  lazy: true
 })
 
-const { data: summary } = await useFetch('/api/summary', { headers })
+const { data: summary, status: summaryStatus } = useFetch('/api/summary', {
+  headers,
+  lazy: true
+})
+
+/**
+ * 'idle' ikut dihitung sebagai sedang memuat: pengambilan lazy baru berjalan
+ * di `onBeforeMount`, sehingga status sempat 'idle' saat komponen disiapkan.
+ * Tanpa itu, sekejap pertama halaman akan mengaku "belum ada pesanan".
+ */
+const loading = computed(() => fetchStatus.value === 'idle' || fetchStatus.value === 'pending')
+const summaryLoading = computed(() => (summaryStatus.value === 'idle' || summaryStatus.value === 'pending') && !summary.value)
+
+/**
+ * Kerangka hanya ditampilkan saat layar benar-benar masih kosong. Begitu ada
+ * daftar lama - filter diganti, atau kembali ke halaman ini dari Referal -
+ * daftar itu yang dibiarkan berdiri sampai yang baru datang: menukarnya
+ * dengan kerangka membuat layar berkedip tanpa memberi informasi baru.
+ */
+const showSkeleton = computed(() => loading.value && !data.value)
+const refreshing = computed(() => loading.value && !!data.value)
+
+/**
+ * Tiga kartu, kira-kira setinggi satu layar. Sengaja bukan pageSize (20):
+ * kerangka sepanjang itu menjanjikan lebih banyak daripada yang mungkin
+ * datang, sementara yang perlu dijaga memang cuma bagian yang terlihat.
+ */
+const SKELETON_CARDS = 3
 
 /** Isian formulir filter; baru berpengaruh setelah "Terapkan" ditekan. */
 const form = reactive({
@@ -137,7 +176,16 @@ const forbidden = computed(() => error.value?.statusCode === 403)
         @click="applyQuery({ status: undefined })"
       >
         <span class="block text-xs text-on-surface-variant">Semua</span>
-        <span class="block text-lg font-semibold tabular-nums text-on-surface">
+        <!-- Balok setinggi barisnya, bukan angka 0: nol yang ternyata cuma
+             "belum terhitung" salah dibaca sebagai tidak ada pesanan. -->
+        <span
+          v-if="summaryLoading"
+          class="skeleton block h-7 w-10"
+        />
+        <span
+          v-else
+          class="block text-lg font-semibold tabular-nums text-on-surface"
+        >
           {{ totalSemua }}
         </span>
       </button>
@@ -153,7 +201,14 @@ const forbidden = computed(() => error.value?.statusCode === 403)
         @click="applyQuery({ status: option.value })"
       >
         <span class="block text-xs text-on-surface-variant">{{ option.label }}</span>
-        <span class="block text-lg font-semibold tabular-nums text-on-surface">
+        <span
+          v-if="summaryLoading"
+          class="skeleton block h-7 w-8"
+        />
+        <span
+          v-else
+          class="block text-lg font-semibold tabular-nums text-on-surface"
+        >
           {{ summary?.[option.value] ?? 0 }}
         </span>
       </button>
@@ -229,12 +284,20 @@ const forbidden = computed(() => error.value?.statusCode === 403)
       </button>
     </div>
 
-    <p
-      v-else-if="fetchStatus === 'pending'"
-      class="mt-6 text-sm text-on-surface-variant"
+    <div
+      v-else-if="showSkeleton"
+      class="mt-6 space-y-4"
+      role="status"
+      aria-busy="true"
     >
-      Memuat pesanan…
-    </p>
+      <!-- Pembaca layar tidak mendapat apa pun dari balok-balok ini, jadi
+           kalimatnya tetap ada - hanya tidak tergambar. -->
+      <span class="sr-only">Memuat pesanan…</span>
+      <OrderCardSkeleton
+        v-for="n in SKELETON_CARDS"
+        :key="n"
+      />
+    </div>
 
     <p
       v-else-if="!data?.orders.length"
@@ -243,9 +306,13 @@ const forbidden = computed(() => error.value?.statusCode === 403)
       Belum ada pesanan yang cocok dengan filter ini.
     </p>
 
+    <!-- Daftar lama tetap terbaca saat data baru diambil, cuma diredupkan
+         supaya jelas angkanya sedang diperbarui. -->
     <div
       v-else
-      class="mt-6 space-y-4"
+      class="mt-6 space-y-4 transition-opacity"
+      :class="refreshing && 'opacity-60'"
+      :aria-busy="refreshing"
     >
       <OrderCard
         v-for="order in data.orders"
