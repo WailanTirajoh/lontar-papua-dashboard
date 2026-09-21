@@ -30,10 +30,35 @@ const listQuery = computed(() => ({
   page: page.value
 }))
 
-const { data, status: fetchStatus, error, refresh } = await useFetch('/api/referrals', {
+/**
+ * `lazy` dan setup yang tidak lagi `await` - sama persis alasannya dengan
+ * halaman pesanan: tanpa keduanya, Suspense menahan halaman lama sampai
+ * /api/referrals membalas, sehingga klik menu terasa menggantung. Render di
+ * server tidak terpengaruh, datanya tetap ditunggu di sana.
+ */
+const { data, status: fetchStatus, error, refresh } = useFetch('/api/referrals', {
   query: listQuery,
-  headers
+  headers,
+  lazy: true
 })
+
+/**
+ * 'idle' ikut dihitung sebagai sedang memuat: pengambilan lazy baru berjalan
+ * di `onBeforeMount`, jadi tanpa itu sekejap pertama halaman akan mengaku
+ * "belum ada kode referal".
+ */
+const loading = computed(() => fetchStatus.value === 'idle' || fetchStatus.value === 'pending')
+
+/**
+ * Kerangka hanya saat layar masih kosong; daftar lama dibiarkan berdiri
+ * (diredupkan) selama data baru diambil. Lihat halaman pesanan untuk
+ * alasannya.
+ */
+const showSkeleton = computed(() => loading.value && !data.value)
+const refreshing = computed(() => loading.value && !!data.value)
+
+/** Kira-kira setinggi satu layar, bukan pageSize - lihat halaman pesanan. */
+const SKELETON_CARDS = 3
 
 const search = ref(String(route.query.q ?? ''))
 
@@ -273,12 +298,20 @@ const forbidden = computed(() => error.value?.statusCode === 403)
       </button>
     </div>
 
-    <p
-      v-else-if="fetchStatus === 'pending'"
-      class="mt-6 text-sm text-on-surface-variant"
+    <div
+      v-else-if="showSkeleton"
+      class="mt-6 space-y-4"
+      role="status"
+      aria-busy="true"
     >
-      Memuat kode referal…
-    </p>
+      <!-- Balok-baloknya tidak berarti apa-apa bagi pembaca layar, jadi
+           kalimatnya tetap ada - hanya tidak tergambar. -->
+      <span class="sr-only">Memuat kode referal…</span>
+      <ReferralCardSkeleton
+        v-for="n in SKELETON_CARDS"
+        :key="n"
+      />
+    </div>
 
     <p
       v-else-if="!data?.referrals.length"
@@ -287,9 +320,12 @@ const forbidden = computed(() => error.value?.statusCode === 403)
       Belum ada kode referal yang cocok dengan filter ini.
     </p>
 
+    <!-- Daftar lama tetap terbaca saat data baru diambil, cuma diredupkan. -->
     <div
       v-else
-      class="mt-6 space-y-4"
+      class="mt-6 space-y-4 transition-opacity"
+      :class="refreshing && 'opacity-60'"
+      :aria-busy="refreshing"
     >
       <ReferralCard
         v-for="referral in data.referrals"
